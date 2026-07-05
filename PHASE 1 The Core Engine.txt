@@ -1,0 +1,47 @@
+PHASE 1: The Core Engine 
+
+✅ The Database Connection: PostgreSQL connected to Spring Boot.
+
+✅ The Streaming Engine: Handling HTTP Range Requests (UrlResource) to stream chunks of video instead of loading the whole file.
+
+✅ The Scanner: Depth-First Search (DFS) algorithm to crawl your hard drive and find .mp4 and .mkv files.
+
+PHASE 2: Data Polish & APIs (📍 YOU ARE HERE)
+This is where you left off. Your database has files, but the names are ugly (e.g., [YTS] The.Matrix.1999.mp4).
+
+✅ The Regex Cleaner: Write the logic to strip out years, brackets, and resolution tags before saving to the database so it reads as "The Matrix".
+
+✅ The Search API: Create a Spring Boot endpoint (/api/v1/search?q=matrix) that queries the database using LIKE %keyword%.
+
+✅ Add AI server to return the movie name and get the details from there and then search for tmdb api
+
+✅ The Metadata API (Optional but recommended): Connect to the free TMDB API to fetch the movie poster URL and a 2-sentence summary based on your clean filename.
+
+PHASE 3: The Frontend Experience (The "Netflix" Look)
+Moving to React to make it actually usable.
+
+[ ] The Storefront Grid: Build the homepage grid displaying the movie titles (and posters, if you did the TMDB integration).
+
+[ ] The Player UI: Build a custom video page using the HTML5 <video> tag, pointing to your Spring Boot streaming endpoint.
+
+PHASE 4: Advanced Personal Features
+These turn it from a "school project" into a real product.
+
+[ ] "Resume Watching" State:
+
+React sends a ping every 10 seconds with the current video timestamp.
+
+Spring Boot saves this to a user_progress table.
+
+When you open the movie later, it resumes exactly where you left off.
+
+[ ] Subtitles: Add support for .vtt or .srt files alongside the video stream.
+
+PHASE 5: "The Scale" (Building for Others - FUTURE)
+Do not touch this until Phases 1-4 are 100% finished.
+
+[ ] Authentication: Spring Security + JWT to allow you and your friends to have separate accounts and separate "Resume Watching" histories.
+
+[ ] Transcoding (FFmpeg): Converting 4K movies to 720p on the fly using HLS (HTTP Live Streaming) so your friends don't buffer forever on their mobile data.
+
+[ ] Cloud Tunneling: Setting up Cloudflare Tunnels or Ngrok so your local server can be accessed securely from anywhere in the world.

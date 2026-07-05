@@ -3,6 +3,7 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+PHASE 1 The Core Engine.txt
 
 ### STS ###
 .apt_generated

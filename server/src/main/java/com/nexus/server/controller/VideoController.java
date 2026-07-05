@@ -10,14 +10,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nexus.server.dto.VideoListResponse;
 import com.nexus.server.service.VideoService;
-
-import org.springframework.web.bind.annotation.GetMapping;
 
 
 
@@ -46,7 +45,7 @@ public class VideoController{
 
     @GetMapping("/all")
     public ResponseEntity<List<VideoListResponse>> getAllVideos(){
-        List<VideoListResponse> videos =videoService.getAllVideos();
+        List<VideoListResponse> videos = videoService.getAllVideos();
         return new ResponseEntity<>(videos , HttpStatus.OK);    
     }
 }

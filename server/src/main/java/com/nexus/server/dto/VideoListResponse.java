@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class VideoListResponse{
     public long id;
-    public String name;
-
+    public String fileName;
+    public String overView;
+    public String posterPath;
+    public String releaseDate;
 }

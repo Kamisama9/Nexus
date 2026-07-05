@@ -40,7 +40,9 @@ public class VideoService {
         for(Video v: ls ){
             VideoListResponse video=new VideoListResponse();
             video.setId(v.getId());
-            video.setName(v.getFileName());
+            video.setFileName(v.getFileName());
+            video.setOverView(v.getOverView());
+            video.setPosterPath(v.getPosterPath());
             videos.add(video);
         }
         return videos;

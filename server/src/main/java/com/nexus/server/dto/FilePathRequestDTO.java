@@ -9,5 +9,4 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class FilePathRequestDTO {
     public String filePath;
-    
 }
