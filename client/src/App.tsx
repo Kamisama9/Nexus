@@ -1,6 +1,5 @@
-import './App.css'
-import PlayVideo from './components/PlayVideo'
-import Home from './pages/Home/Home'
+import PlayVideo from '@/components/PlayVideo'
+import Home from '@/pages/Home/Home'
 import { BrowserRouter as Router , Routes ,Route } from 'react-router-dom'
 function App() {
 
