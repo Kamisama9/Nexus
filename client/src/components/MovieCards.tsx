@@ -17,22 +17,17 @@ const MovieCards = ({
   if (!videoFiles || videoFiles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-3xl border border-zinc-800 bg-zinc-900/50 py-24 text-center">
-
-        <h2 className="text-2xl font-bold text-white">
-          Nothing Found
-        </h2>
+        <h2 className="text-2xl font-bold text-white">Nothing Found</h2>
 
         <p className="mt-3 max-w-md text-zinc-500">
           Try syncing your library or searching with another title.
         </p>
-
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-
       {videoFiles.map((video) => (
         <div
           key={video.id}
@@ -50,11 +45,14 @@ const MovieCards = ({
             hover:shadow-amber-500/10
           "
         >
-
           {/* Poster */}
+            <Link
+                to={`/play/${video.id}`}
+                className="flex items-center justify-center gap-2"
+              >
+              </Link>
 
           <div className="relative overflow-hidden">
-
             <img
               src={video.posterPath}
               alt={video.fileName}
@@ -67,7 +65,7 @@ const MovieCards = ({
                 duration-500
                 group-hover:scale-110
               "
-            />
+            > </img>
 
             {/* Gradient */}
 
@@ -75,7 +73,7 @@ const MovieCards = ({
 
             {/* Play Overlay */}
 
-            <div
+            <Link  to={`/play/${video.id}`}
               className="
                 absolute
                 inset-0
@@ -89,23 +87,16 @@ const MovieCards = ({
               "
             >
               <div className="rounded-full bg-amber-400 p-5 shadow-lg shadow-amber-500/30">
-
-                <Play
-                  className="h-7 w-7 text-black"
-                  fill="black"
-                />
-
+                <Play className="h-7 w-7 text-black" fill="black" />
+              
               </div>
-            </div>
-
+            </Link>
           </div>
 
           {/* Content */}
 
           <div className="space-y-4 p-5">
-
             <div>
-
               <h3 className="line-clamp-1 text-lg font-bold text-white">
                 {video.fileName}
               </h3>
@@ -115,7 +106,6 @@ const MovieCards = ({
                   {video.overView}
                 </p>
               )}
-
             </div>
 
             <Button
@@ -134,20 +124,13 @@ const MovieCards = ({
                 to={`/play/${video.id}`}
                 className="flex items-center justify-center gap-2"
               >
-                <Play
-                  className="h-4 w-4"
-                  fill="black"
-                />
-
+                <Play className="h-4 w-4" fill="black" />
                 Play Movie
               </Link>
             </Button>
-
           </div>
-
         </div>
       ))}
-
     </div>
   );
 };
