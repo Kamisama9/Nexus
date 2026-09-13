@@ -22,6 +22,7 @@ const FileSearch = () => {
   const [syncing, setSyncing] = useState(false);
   const [openModal, setOpenModal] = useState(false);
 
+
   const getAllFiles = async () => {
     setLoading(true);
     try {
@@ -43,11 +44,15 @@ const FileSearch = () => {
   };
   const handleChangeLibrary = async () => {
     setOpenModal(true);
+    setLoading(true);
+    console.log("Changing library path to:", filePath);
     try {
       await axios.put(`${API_BASE}/library`, { filePath: filePath });
+      localStorage.setItem("libraryPath", filePath);
       await getAllFiles();
     } finally {
-      setSyncing(false);
+      setOpenModal(false);
+      setLoading(false);
     }
   };
 
@@ -66,14 +71,18 @@ const FileSearch = () => {
   };
 
   useEffect(() => {
-    getAllFiles();
-  }, []);
+  const savedPath = localStorage.getItem("libraryPath");
+  if (savedPath) {
+    setFilePath(savedPath);
+  }
+  getAllFiles();
+}, []);
 
   return (
     <section className="container relative mx-auto -mt-16 max-w-7xl px-6 pb-20">
       {/* Floating Search Panel */}
       {openModal && (
-        <div className ="fixed z-100 justify-center items-center bg-opacity-40">
+        <div className ="fixed z-100 justify-center items-center  overflow-auto bg-gray-100/50  inset-0">
           <div className="fixed inset-0 flex items-center justify-center">
             <div className="bg-zinc-900 p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-4 text-white">Change Library Path</h2>
@@ -81,7 +90,7 @@ const FileSearch = () => {
                 type="text"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
-                placeholder="Enter new library path"
+                placeholder={filePath || "Enter new library path"}
                 className="w-full p-2 mb-4 border border-gray-300 rounded"
               />
               <div className="flex justify-end">
@@ -95,7 +104,7 @@ const FileSearch = () => {
                   onClick={handleChangeLibrary}
                   className="px-4 py-2 bg-amber-400 text-black rounded hover:bg-amber-300"
                 >
-                  Save
+                 {loading ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
@@ -148,7 +157,7 @@ const FileSearch = () => {
           {/* Search Button */}
 
           <Button
-            onClick={handleChangeLibrary}
+            onClick={handleSearch}
             className="
             h-14
             rounded-full
@@ -187,7 +196,7 @@ const FileSearch = () => {
             Rescan Library
           </Button>
           <Button
-            onClick={handleChangeLibrary}
+            onClick={() => setOpenModal(true)}
             disabled={syncing}
             variant="outline"
             className="
