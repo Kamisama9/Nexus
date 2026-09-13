@@ -1,6 +1,7 @@
 package com.nexus.server.entity;
 
-import jakarta.persistence.Column;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,8 +21,12 @@ public class Video {
     private Long id;
     private String fileName;
     private String filePath;
-    @Column(columnDefinition = "TEXT")
     private String overView;
     private String posterPath;
     private String releaseDate;
+    private Long size;
+    private LocalDateTime modifiedDate;
+
+    // @OneToOne(mappedBy = "video", cascade = CascadeType.ALL)
+    // private UserProgress userProgress; //One to one relationship with UserProgress entity  --> no need of bidirectional approach right now, as we are not using it anywhere in the code.
 }
