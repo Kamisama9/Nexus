@@ -1,8 +1,10 @@
 package com.nexus.server.service;
 
+import com.nexus.server.repository.UserProgressRepository;
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +21,8 @@ import com.nexus.server.repository.VideoRepository;
 
 @Service
 public class MediaScannerService {
+
+    private final UserProgressRepository userProgressRepository;
 
     private static final Set<String> IGNORE_FOLDERS = new HashSet<>(Arrays.asList(
             "$recycle.bin", "system volume information", "windows", "programdata",
@@ -40,17 +44,28 @@ public class MediaScannerService {
     @Autowired
     private AiService aiService;
 
-    public List<Video> scanManager(Path file) {
+    MediaScannerService(UserProgressRepository userProgressRepository) {
+        this.userProgressRepository = userProgressRepository;
+    }
+
+    public List<Video> changeLibrary(Path file){
         videoRepository.deleteAll();
+        userProgressRepository.deleteAll();
+        return scanManager(file);
+    }
+
+    public List<Video> scanManager(Path file) {
+        // use businessKey to find the existing files in the DB and update them before
+        // scanning the new files
+        // videoRepository.deleteAll();
         File root = file.toFile();
-        FileScanner(root);
+        fileScanner(root);
         return videoRepository.findAll();
     }
 
-    public void FileScanner(File root) {
+    public void fileScanner(File root) {
         // receive file from controller and scan the file
         // the recieved file is a Path file convert it to a file
-
         if (root.isDirectory()) {
             File[] allFiles = root.listFiles();
             if (allFiles == null)
@@ -60,14 +75,64 @@ public class MediaScannerService {
                     continue;
                 }
                 if (f.isDirectory()) {
-                    FileScanner(f);
+                    fileScanner(f);
                 } else {
-                    saveFile(f);
+                    checkFile(f);
                 }
             }
         } else {
-            saveFile(root);
+            checkFile(root);
         }
+    }
+
+    public void checkFile(File file) {
+        String videoString = file.getName().toLowerCase();
+        if (videoString.endsWith(".mp4") || videoString.endsWith(".mkv") || videoString.endsWith(".avi")
+                || videoString.endsWith(".mov")) {
+            Video existingVideo = findExistingVideo(file);
+            if (existingVideo != null) {
+                existingVideo.setFilePath(file.getAbsolutePath());
+                videoRepository.save(existingVideo);
+            } else {
+                saveFile(file);
+            }
+        }
+    }
+
+    public Video findExistingVideo(File file) {
+        Path path = file.toPath();
+        try {
+            Long size = Files.size(path);
+            LocalDateTime lastModifiedTime = Files.getLastModifiedTime(path).toInstant()
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+            Video video = videoRepository.findBySizeAndModifiedDate(size, lastModifiedTime);
+            if (video != null) {
+                return video;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public MovieMetadata getTmdbMetadata(String videoName) {
+        MovieMetadata metadata = null;
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            JsonNode jsonNode = mapper.readTree(videoName);
+            videoName = jsonNode.get("title").asText();
+            String year = jsonNode.get("year").asText();
+
+            metadata = tmdbService.getDetails(videoName);
+        } catch (Exception e) {
+            e.printStackTrace();
+            metadata = tmdbService.getDetails(videoName);
+        }
+        if (metadata != null) {
+            System.out.println("Found Poster: " + metadata.posterUrl());
+            System.out.println("Found Plot: " + metadata.overview());
+        }
+        return metadata;
     }
 
     public void saveFile(File videoFile) {
@@ -76,45 +141,35 @@ public class MediaScannerService {
 
         // get clean name from ai
         String cleanName = aiService.cleanNameWithAi(videoName);
-
-        MovieMetadata metadata = null;
-
-        ObjectMapper mapper = new ObjectMapper();
+        System.out.print(cleanName);
+        MovieMetadata metadata = getTmdbMetadata(cleanName);
 
         try {
-            JsonNode jsonNode = mapper.readTree(cleanName);
-
-            videoName = jsonNode.get("title").asText();
-            String year = jsonNode.get("year").asText();
-
-
-            metadata =tmdbService.getDetails(videoName);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            metadata = tmdbService.getDetails(videoName);
-        }
-        if(metadata != null) {
-           System.out.println("Found Poster: " + metadata.posterUrl());
-            System.out.println("Found Plot: " + metadata.overview());
-        }
-
-        if (videoString.endsWith(".mp4") || videoString.endsWith(".mkv") || videoString.endsWith(".avi")
-                || videoString.endsWith(".mov")) {
             Video v = new Video();
-            v.setFileName(videoName);
+            v.setFileName(metadata != null ? metadata.title() : cleanName);
             v.setFilePath(videoFile.getAbsolutePath());
             v.setPosterPath(metadata != null ? metadata.posterUrl() : null);
             v.setOverView(metadata != null ? metadata.overview() : null);
+
+            Long size = Files.size(videoFile.toPath());
+            // convert fileTime to localDateTime
+            LocalDateTime lastModifiedTime = Files.getLastModifiedTime(videoFile.toPath()).toInstant()
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+            v.setSize(size);
+            v.setModifiedDate(lastModifiedTime);
             videoRepository.save(v);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
     }
 
     public String nameParser(String fileName) {
         // remove the extension from the file name
+        fileName = fileName.toLowerCase();
         String name = fileName.replaceAll("\\.mp4|\\.mkv|\\.avi|\\.mov", "");
         // remove qulaity from the file name
-        name = name.replaceAll("1080p|720p|BluRay|x264|x265|HEVC", "");
+        name = name.replaceAll("(?i)1080p|720p|bluray|x264|x265|hevc", "");
         // remove brackets from the file name
         // .* means "match absolutely everything between the brackets"
         // If you had the string [YTS] The Matrix [1080p], a greedy regex would start at
@@ -126,9 +181,6 @@ public class MediaScannerService {
     }
 
     public List<Video> SearchVideo(String keyword) {
-        List<Video> videos = new ArrayList<>();
-        Video video = videoRepository.findByFileNameContainingIgnoreCase(keyword);
-        videos.add(video);
-        return videos;
+        return videoRepository.findByFileNameContainingIgnoreCase(keyword);
     }
 }

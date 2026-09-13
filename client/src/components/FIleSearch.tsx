@@ -17,8 +17,10 @@ const API_BASE = "http://localhost:8080/api/v1";
 const FileSearch = () => {
   const [videoFiles, setVideoFiles] = useState<videoName[]>();
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [filePath,setFilePath] = useState("");
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [openModal, setOpenModal] = useState(false);
 
   const getAllFiles = async () => {
     setLoading(true);
@@ -33,7 +35,16 @@ const FileSearch = () => {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await axios.post(`${API_BASE}/path`, { filePath: "E:/Movies" });
+      await axios.post(`${API_BASE}/path`, { filePath: filePath });
+      await getAllFiles();
+    } finally {
+      setSyncing(false);
+    }
+  };
+  const handleChangeLibrary = async () => {
+    setOpenModal(true);
+    try {
+      await axios.put(`${API_BASE}/library`, { filePath: filePath });
       await getAllFiles();
     } finally {
       setSyncing(false);
@@ -61,6 +72,36 @@ const FileSearch = () => {
   return (
     <section className="container relative mx-auto -mt-16 max-w-7xl px-6 pb-20">
       {/* Floating Search Panel */}
+      {openModal && (
+        <div className ="fixed z-100 justify-center items-center bg-opacity-40">
+          <div className="fixed inset-0 flex items-center justify-center">
+            <div className="bg-zinc-900 p-6 rounded-lg shadow-lg">
+              <h2 className="text-xl font-bold mb-4 text-white">Change Library Path</h2>
+              <input
+                type="text"
+                value={filePath}
+                onChange={(e) => setFilePath(e.target.value)}
+                placeholder="Enter new library path"
+                className="w-full p-2 mb-4 border border-gray-300 rounded"
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setOpenModal(false)}
+                  className="px-4 py-2 mr-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangeLibrary}
+                  className="px-4 py-2 bg-amber-400 text-black rounded hover:bg-amber-300"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+         </div>
+        </div>
+      )}
 
       <div className="mb-14 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-8 shadow-2xl shadow-black/50 backdrop-blur-xl">
         <div className="mb-8 flex flex-col gap-3">
@@ -107,7 +148,7 @@ const FileSearch = () => {
           {/* Search Button */}
 
           <Button
-            onClick={handleSearch}
+            onClick={handleChangeLibrary}
             className="
             h-14
             rounded-full
@@ -142,8 +183,23 @@ const FileSearch = () => {
             ) : (
               <FolderSync className="mr-2 h-4 w-4 text-amber-400" />
             )}
-            Sync Library
+            
+            Rescan Library
           </Button>
+          <Button
+            onClick={handleChangeLibrary}
+            disabled={syncing}
+            variant="outline"
+            className="
+            h-14
+            rounded-full
+            border-zinc-700
+            bg-zinc-950
+            px-8
+            text-zinc-200
+            hover:bg-zinc-800
+          "
+          >Change Library</Button>
         </div>
       </div>
 

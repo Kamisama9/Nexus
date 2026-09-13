@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.nexus.server.dto.FilePathRequestDTO;
 import com.nexus.server.entity.Video;
 import com.nexus.server.service.MediaScannerService;
+
 
 @RestController
 @RequestMapping("/api/v1")
@@ -49,6 +51,27 @@ public class FileController {
         if (Files.exists(file)) {
             
             Object result = mediaScannerService.scanManager(file);
+
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>("Folder Not Found", HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @PutMapping("library")
+    public ResponseEntity<?> changeLibrary(@RequestBody FilePathRequestDTO request) {
+        
+         String pathString = request.getFilePath();
+
+        // path cannot be empty
+        if (pathString == null || pathString.isEmpty()) {
+            return new ResponseEntity<>("Path cannot be empty", HttpStatus.BAD_REQUEST);
+        }
+
+        Path file = Paths.get(pathString);
+        if (Files.exists(file)) {
+            
+            Object result = mediaScannerService.changeLibrary(file);
 
             return new ResponseEntity<>(result, HttpStatus.OK);
         } else {
