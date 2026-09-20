@@ -1,31 +1,74 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Film } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 
 const PlayVideo = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const videoRef = useRef(null);
 
   const [error, setError] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  const videoUrl = `http://localhost:8080/api/v1/play/${id}`;
+  const API_BASE = "http://localhost:8080/api/v1";
+
+  console.log(progress);
+
+  // Make ping every 10 sec to save the progress in localstorage and close the page send progress to backend
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      localStorage.setItem("time", videoRef.current?.currentTime ?? 0);
+    }, 10000);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      // save progress
+      const time = localStorage.getItem("time");
+      const progress = Math.floor(Number(time));
+      fetch(`${API_BASE}/user-progress/${id}/progress`, {
+        method: "PUT",
+        headers: {
+          "Content-type": "application/json",
+        },
+        body: JSON.stringify({ progress: progress }),
+        keepalive: true,
+      });
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [id]);
+
+  const videoUrl = `${API_BASE}/play/${id}`;
+
+  useEffect(() => {
+    if (videoRef.current && progress > 0) {
+      videoRef.current.currentTime = progress;
+    }
+  }, [progress]);
 
   useEffect(() => {
     setError(false);
+    //get progress
+    axios
+      .get(`${API_BASE}/user-progress/${id}`)
+      .then((response) => setProgress(response.data.progress))
+      .catch(() => setError(true));
   }, [id]);
 
   return (
     <div className="min-h-screen bg-zinc-950">
-
-      {/* Header */}
-
       <header className="sticky top-0 z-50 border-b border-zinc-800 bg-black/60 backdrop-blur-xl">
-
         <div className="container mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-
           <div className="flex items-center gap-4">
-
             <Button
               variant="ghost"
               size="icon"
@@ -36,34 +79,21 @@ const PlayVideo = () => {
             </Button>
 
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500">
-
               <Film className="h-5 w-5 text-black" />
-
             </div>
 
             <div>
+              <h2 className="font-bold text-white">Now Playing</h2>
 
-              <h2 className="font-bold text-white">
-                Now Playing
-              </h2>
-
-              <p className="text-sm text-zinc-500">
-                Movie #{id}
-              </p>
-
+              <p className="text-sm text-zinc-500">Movie #{id}</p>
             </div>
-
           </div>
-
         </div>
-
       </header>
 
       <main className="container mx-auto max-w-7xl px-6 py-12">
-
         {error ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-zinc-800 bg-zinc-900 py-24">
-
             <h2 className="text-3xl font-bold text-white">
               Unable to play video
             </h2>
@@ -78,12 +108,11 @@ const PlayVideo = () => {
             >
               Back to Library
             </Button>
-
           </div>
         ) : (
           <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black shadow-2xl shadow-black/60">
-
             <video
+              ref={videoRef}
               controls
               autoPlay
               className="aspect-video w-full"
@@ -91,12 +120,9 @@ const PlayVideo = () => {
             >
               <source src={videoUrl} type="video/mp4" />
             </video>
-
           </div>
         )}
-
       </main>
-
     </div>
   );
 };

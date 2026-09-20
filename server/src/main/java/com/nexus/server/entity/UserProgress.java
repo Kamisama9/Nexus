@@ -23,7 +23,7 @@ public class UserProgress {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long Id;
     @OneToOne
-    @JoinColumn(name = "videoId")
+    @JoinColumn(name = "video_id")
     @JsonIgnore
     private Video video;  //Foreign key to Video entity  --> 1 to 1 relationship with Video entity
     private int progress; //Progress in seconds

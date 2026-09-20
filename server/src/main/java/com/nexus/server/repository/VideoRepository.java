@@ -15,4 +15,6 @@ public interface VideoRepository  extends JpaRepository<Video,Long>{
     List<Video> findByFileNameContainingIgnoreCase(String keyword);
     @Query("SELECT v FROM Video v where v.size=:size AND v.modifiedDate=:modifiedDate")
     Video findBySizeAndModifiedDate(@Param("size") Long size,@Param("modifiedDate") LocalDateTime modifiedDate);
+    @Query("SELECT v.id FROM Video v")
+    List<Long> findAllVideoIds();
 }

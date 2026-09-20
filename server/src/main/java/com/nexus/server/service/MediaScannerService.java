@@ -1,6 +1,5 @@
 package com.nexus.server.service;
 
-import com.nexus.server.repository.UserProgressRepository;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,13 +15,13 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexus.server.dto.MovieMetadata;
+import com.nexus.server.entity.UserProgress;
 import com.nexus.server.entity.Video;
+import com.nexus.server.repository.UserProgressRepository;
 import com.nexus.server.repository.VideoRepository;
 
 @Service
 public class MediaScannerService {
-
-    private final UserProgressRepository userProgressRepository;
 
     private static final Set<String> IGNORE_FOLDERS = new HashSet<>(Arrays.asList(
             "$recycle.bin", "system volume information", "windows", "programdata",
@@ -44,38 +43,62 @@ public class MediaScannerService {
     @Autowired
     private AiService aiService;
 
-    MediaScannerService(UserProgressRepository userProgressRepository) {
-        this.userProgressRepository = userProgressRepository;
-    }
+    @Autowired 
+    private UserProgressRepository userProgressRepository;
 
-    public List<Video> changeLibrary(Path file){
-        videoRepository.deleteAll();
+    public List<Video> changeLibrary(Path file) {
         userProgressRepository.deleteAll();
+        videoRepository.deleteAll();
         return scanManager(file);
     }
 
+    public void deleteStales(Set<Long> existingVideoIds) {
+        for (Long videoId : existingVideoIds) {
+            Video video = videoRepository.findById(videoId).orElse(null);
+            if (video != null) {
+                File file = new File(video.getFilePath());
+                if (!file.exists()) {
+                    userProgressRepository.deleteByVideo_Id(videoId);
+                    videoRepository.delete(video);
+                }
+            }
+        }
+    }
+
     public List<Video> scanManager(Path file) {
-        // use businessKey to find the existing files in the DB and update them before
-        // scanning the new files
-        // videoRepository.deleteAll();
         File root = file.toFile();
-        fileScanner(root);
+        Set<Long> existingVideoIds = new HashSet<>();
+        // Only take a snapshot when scanning a directory
+        if (root.isDirectory()) {
+            existingVideoIds = new HashSet<>(videoRepository.findAllVideoIds());
+        }
+        boolean scanSuccessful = fileScanner(root);
+        // Only a complete directory scan can tell us which files disappeared
+        if (root.isDirectory() && scanSuccessful) {
+            deleteStales(existingVideoIds);
+        }
         return videoRepository.findAll();
     }
 
-    public void fileScanner(File root) {
-        // receive file from controller and scan the file
-        // the recieved file is a Path file convert it to a file
+    public UserProgress getUserProgress(Long videoId) {
+        return userProgressRepository.findByVideo_Id(videoId);
+    }
+
+    public boolean fileScanner(File root) {
         if (root.isDirectory()) {
             File[] allFiles = root.listFiles();
-            if (allFiles == null)
-                return;
+            if (allFiles == null) {
+                return false;
+            }
             for (File f : allFiles) {
                 if (IGNORE_FOLDERS.contains(f.getName().toLowerCase())) {
                     continue;
                 }
                 if (f.isDirectory()) {
-                    fileScanner(f);
+                    boolean success = fileScanner(f);
+                    if (!success) {
+                        return false;
+                    }
                 } else {
                     checkFile(f);
                 }
@@ -83,6 +106,7 @@ public class MediaScannerService {
         } else {
             checkFile(root);
         }
+        return true;
     }
 
     public void checkFile(File file) {
