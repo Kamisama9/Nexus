@@ -24,14 +24,28 @@ import com.nexus.server.repository.VideoRepository;
 public class MediaScannerService {
 
     private static final Set<String> IGNORE_FOLDERS = new HashSet<>(Arrays.asList(
-            "$recycle.bin", "system volume information", "windows", "programdata",
-            "recovery", "perflogs", "appdata",
-
-            "program files", "program files (x86)",
-
-            "node_modules", ".git", ".idea", ".vscode", "target", "build", "dist", "venv",
-
-            "temp", "tmp", ".cache"));
+            "$recycle.bin",
+            "system volume information",
+            "windows",
+            "windowsapps",
+            "config.msi",
+            "programdata",
+            "recovery",
+            "perflogs",
+            "appdata",
+            "program files",
+            "program files (x86)",
+            "node_modules",
+            ".git",
+            ".idea",
+            ".vscode",
+            "target",
+            "build",
+            "dist",
+            "venv",
+            "temp",
+            "tmp",
+            ".cache"));
 
     // store the files in the DB
     @Autowired
@@ -43,7 +57,7 @@ public class MediaScannerService {
     @Autowired
     private AiService aiService;
 
-    @Autowired 
+    @Autowired
     private UserProgressRepository userProgressRepository;
 
     public List<Video> changeLibrary(Path file) {
@@ -73,6 +87,7 @@ public class MediaScannerService {
             existingVideoIds = new HashSet<>(videoRepository.findAllVideoIds());
         }
         boolean scanSuccessful = fileScanner(root);
+        System.out.print(scanSuccessful);
         // Only a complete directory scan can tell us which files disappeared
         if (root.isDirectory() && scanSuccessful) {
             deleteStales(existingVideoIds);
@@ -85,9 +100,11 @@ public class MediaScannerService {
     }
 
     public boolean fileScanner(File root) {
+        boolean scanComplete = true;
         if (root.isDirectory()) {
             File[] allFiles = root.listFiles();
             if (allFiles == null) {
+                System.out.println("Could not access directory: " + root.getAbsolutePath());
                 return false;
             }
             for (File f : allFiles) {
@@ -97,7 +114,7 @@ public class MediaScannerService {
                 if (f.isDirectory()) {
                     boolean success = fileScanner(f);
                     if (!success) {
-                        return false;
+                        scanComplete = false;
                     }
                 } else {
                     checkFile(f);
@@ -106,7 +123,7 @@ public class MediaScannerService {
         } else {
             checkFile(root);
         }
-        return true;
+        return scanComplete;
     }
 
     public void checkFile(File file) {
@@ -143,20 +160,33 @@ public class MediaScannerService {
         MovieMetadata metadata = null;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            JsonNode jsonNode = mapper.readTree(videoName);
-            videoName = jsonNode.get("title").asText();
-            String year = jsonNode.get("year").asText();
+            videoName = videoName.trim();
 
-            metadata = tmdbService.getDetails(videoName);
+            if (videoName.startsWith("```")) {
+                videoName = videoName.replaceFirst("^```(?:json)?\\s*", "");
+                videoName = videoName.replaceFirst("\\s*```$", "");
+                videoName = videoName.trim();
+            }
+
+            JsonNode jsonNode = mapper.readTree(videoName);
+
+            String name = jsonNode.path("title").asText("");
+            String year = jsonNode.path("year").asText("");
+
+            System.out.println("Name: " + name);
+            System.out.println("Year: " + year);
+
+            // AI could not identify the movie
+            if (name.isBlank() || name.equalsIgnoreCase("not found")) {
+                System.out.println("AI could not identify movie: " + videoName);
+                return null;
+            }
+
+           return tmdbService.getDetails(name, year);
         } catch (Exception e) {
             e.printStackTrace();
-            metadata = tmdbService.getDetails(videoName);
+            return new MovieMetadata("Default", "Error fetching data", "", "");
         }
-        if (metadata != null) {
-            System.out.println("Found Poster: " + metadata.posterUrl());
-            System.out.println("Found Plot: " + metadata.overview());
-        }
-        return metadata;
     }
 
     public void saveFile(File videoFile) {
@@ -165,16 +195,20 @@ public class MediaScannerService {
 
         // get clean name from ai
         String cleanName = aiService.cleanNameWithAi(videoName);
-        System.out.print(cleanName);
+        System.out.println("AI Cleaned Name" + cleanName);
         MovieMetadata metadata = getTmdbMetadata(cleanName);
 
-        try {
-            Video v = new Video();
-            v.setFileName(metadata != null ? metadata.title() : cleanName);
-            v.setFilePath(videoFile.getAbsolutePath());
-            v.setPosterPath(metadata != null ? metadata.posterUrl() : null);
-            v.setOverView(metadata != null ? metadata.overview() : null);
+        if (metadata == null) {
+            metadata = new MovieMetadata("Default", "Error fetching data", "", "");
+        }
 
+        Video v = new Video();
+        v.setFileName(metadata.title() != null ? metadata.title() : cleanName);
+        v.setFilePath(videoFile.getAbsolutePath());
+        v.setPosterPath(metadata.posterUrl() != null ? metadata.posterUrl() : null);
+        v.setOverView(metadata.overview() != null ? metadata.overview() : null);
+        v.setReleaseDate(metadata.releaseDate() != null ? metadata.releaseDate() : null);
+        try {
             Long size = Files.size(videoFile.toPath());
             // convert fileTime to localDateTime
             LocalDateTime lastModifiedTime = Files.getLastModifiedTime(videoFile.toPath()).toInstant()
