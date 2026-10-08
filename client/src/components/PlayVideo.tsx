@@ -49,11 +49,11 @@ const PlayVideo = () => {
 
   const videoUrl = `${API_BASE}/play/${id}`;
 
-  useEffect(() => {
-    if (videoRef.current && progress > 0) {
+  const handleLoadedMetadata = () => {
+    if (progress > 0 && videoRef.current) {
       videoRef.current.currentTime = progress;
     }
-  }, [progress]);
+  };
 
   useEffect(() => {
     setError(false);
@@ -117,9 +117,11 @@ const PlayVideo = () => {
               autoPlay
               className="aspect-video w-full"
               onError={() => setError(true)}
-            >
-              <source src={videoUrl} type="video/mp4" />
-            </video>
+              onLoadedMetadata={handleLoadedMetadata}
+              src={videoUrl}
+              preload="metadata"
+              playsInline
+            />
           </div>
         )}
       </main>

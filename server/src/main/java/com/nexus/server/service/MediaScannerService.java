@@ -185,7 +185,7 @@ public class MediaScannerService {
            return tmdbService.getDetails(name, year);
         } catch (Exception e) {
             e.printStackTrace();
-            return new MovieMetadata("Default", "Error fetching data", "", "");
+            return null;
         }
     }
 
@@ -198,8 +198,10 @@ public class MediaScannerService {
         System.out.println("AI Cleaned Name" + cleanName);
         MovieMetadata metadata = getTmdbMetadata(cleanName);
 
+        // get thumbnail from the video itself
+        
         if (metadata == null) {
-            metadata = new MovieMetadata("Default", "Error fetching data", "", "");
+            metadata = new MovieMetadata(videoName, "Not able to fetch the data", "", "");
         }
 
         Video v = new Video();
