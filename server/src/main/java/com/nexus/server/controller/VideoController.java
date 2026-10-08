@@ -23,7 +23,6 @@ import com.nexus.server.service.VideoService;
 
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/v1")
 public class VideoController{
 

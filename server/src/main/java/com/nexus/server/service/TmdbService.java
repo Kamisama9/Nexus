@@ -5,6 +5,7 @@ import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.nexus.server.dto.MovieMetadata;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class TmdbService {
@@ -15,9 +16,13 @@ public class TmdbService {
         this.restClient = restClient;
     }
 
+    @Value("${tmdb.api.key}")
+    private String apiKey;
+
     public MovieMetadata getDetails(String movieName,String year) {
         // Call TMDB API to get movie details based on the movie name
-        String apiKey = System.getenv("TMDB_API_KEY");
+        
+
         try {
             Thread.sleep(2000);
 

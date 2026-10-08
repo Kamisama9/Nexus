@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class AiService {
@@ -17,10 +18,12 @@ public class AiService {
     public AiService(RestClient restClient) {
         this.restClient = restClient;
     }
+    @Value("${ai.api.key}")
+    private String apiKey;
 
     public String cleanNameWithAi(String videoName) {
 
-        String apiKey = System.getenv("AI_API_KEY");
+        
 
         String prompt = """
                 You are a movie filename parser.

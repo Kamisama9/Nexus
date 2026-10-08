@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Film } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/config/api";
 
 const PlayVideo = () => {
   const { id } = useParams();
@@ -12,7 +13,7 @@ const PlayVideo = () => {
   const [error, setError] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const API_BASE = "http://localhost:8080/api/v1";
+  
 
   console.log(progress);
 
@@ -31,7 +32,7 @@ const PlayVideo = () => {
       // save progress
       const time = localStorage.getItem("time");
       const progress = Math.floor(Number(time));
-      fetch(`${API_BASE}/user-progress/${id}/progress`, {
+      fetch(`${API_BASE_URL}/user-progress/${id}/progress`, {
         method: "PUT",
         headers: {
           "Content-type": "application/json",
@@ -47,7 +48,7 @@ const PlayVideo = () => {
     };
   }, [id]);
 
-  const videoUrl = `${API_BASE}/play/${id}`;
+  const videoUrl = `${API_BASE_URL}/play/${id}`;
 
   const handleLoadedMetadata = () => {
     if (progress > 0 && videoRef.current) {
@@ -59,7 +60,7 @@ const PlayVideo = () => {
     setError(false);
     //get progress
     axios
-      .get(`${API_BASE}/user-progress/${id}`)
+      .get(`${API_BASE_URL}/user-progress/${id}`)
       .then((response) => setProgress(response.data.progress))
       .catch(() => setError(true));
   }, [id]);

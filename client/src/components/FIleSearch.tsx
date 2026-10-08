@@ -5,6 +5,8 @@ import MovieCards from "./MovieCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { API_BASE_URL } from "@/config/api";
+
 interface videoName {
   id: number;
   fileName: string;
@@ -12,7 +14,6 @@ interface videoName {
   posterPath: string;
 }
 
-const API_BASE = "http://localhost:8080/api/v1";
 
 const FileSearch = () => {
   const [videoFiles, setVideoFiles] = useState<videoName[]>();
@@ -26,7 +27,7 @@ const FileSearch = () => {
   const getAllFiles = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/all`);
+      const res = await axios.get(`${API_BASE_URL}/all`);
       setVideoFiles(res.data);
     } finally {
       setLoading(false);
@@ -40,7 +41,7 @@ const handleSync = async () => {
   }
   setSyncing(true);
   try {
-    await axios.post(`${API_BASE}/path`, { filePath });
+    await axios.post(`${API_BASE_URL}/path`, { filePath });
     await getAllFiles();
   } finally {
     setSyncing(false);
@@ -51,7 +52,7 @@ const handleSync = async () => {
     setLoading(true);
     console.log("Changing library path to:", filePath);
     try {
-      await axios.put(`${API_BASE}/library`, { filePath: filePath });
+      await axios.put(`${API_BASE_URL}/library`, { filePath: filePath });
       localStorage.setItem("libraryPath", filePath);
       await getAllFiles();
     } finally {
@@ -67,7 +68,7 @@ const handleSync = async () => {
     }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/search/${searchKeyword}`);
+      const res = await axios.get(`${API_BASE_URL}/search/${searchKeyword}`);
       setVideoFiles(res.data);
     } finally {
       setLoading(false);

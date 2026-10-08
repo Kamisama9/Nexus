@@ -18,7 +18,6 @@ import com.nexus.server.service.UserProgressService;
 
 @Controller
 @RequestMapping("/api/v1/user-progress") 
-@CrossOrigin(origins = "http://localhost:5173")
 public class UserProgressController {
 
     @Autowired 
