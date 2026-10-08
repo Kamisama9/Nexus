@@ -1,6 +1,5 @@
 package com.nexus.server.service;
 
-import com.nexus.server.repository.UserProgressRepository;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,23 +15,37 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexus.server.dto.MovieMetadata;
+import com.nexus.server.entity.UserProgress;
 import com.nexus.server.entity.Video;
+import com.nexus.server.repository.UserProgressRepository;
 import com.nexus.server.repository.VideoRepository;
 
 @Service
 public class MediaScannerService {
 
-    private final UserProgressRepository userProgressRepository;
-
     private static final Set<String> IGNORE_FOLDERS = new HashSet<>(Arrays.asList(
-            "$recycle.bin", "system volume information", "windows", "programdata",
-            "recovery", "perflogs", "appdata",
-
-            "program files", "program files (x86)",
-
-            "node_modules", ".git", ".idea", ".vscode", "target", "build", "dist", "venv",
-
-            "temp", "tmp", ".cache"));
+            "$recycle.bin",
+            "system volume information",
+            "windows",
+            "windowsapps",
+            "config.msi",
+            "programdata",
+            "recovery",
+            "perflogs",
+            "appdata",
+            "program files",
+            "program files (x86)",
+            "node_modules",
+            ".git",
+            ".idea",
+            ".vscode",
+            "target",
+            "build",
+            "dist",
+            "venv",
+            "temp",
+            "tmp",
+            ".cache"));
 
     // store the files in the DB
     @Autowired
@@ -44,38 +57,65 @@ public class MediaScannerService {
     @Autowired
     private AiService aiService;
 
-    MediaScannerService(UserProgressRepository userProgressRepository) {
-        this.userProgressRepository = userProgressRepository;
-    }
+    @Autowired
+    private UserProgressRepository userProgressRepository;
 
-    public List<Video> changeLibrary(Path file){
-        videoRepository.deleteAll();
+    public List<Video> changeLibrary(Path file) {
         userProgressRepository.deleteAll();
+        videoRepository.deleteAll();
         return scanManager(file);
     }
 
+    public void deleteStales(Set<Long> existingVideoIds) {
+        for (Long videoId : existingVideoIds) {
+            Video video = videoRepository.findById(videoId).orElse(null);
+            if (video != null) {
+                File file = new File(video.getFilePath());
+                if (!file.exists()) {
+                    userProgressRepository.deleteByVideo_Id(videoId);
+                    videoRepository.delete(video);
+                }
+            }
+        }
+    }
+
     public List<Video> scanManager(Path file) {
-        // use businessKey to find the existing files in the DB and update them before
-        // scanning the new files
-        // videoRepository.deleteAll();
         File root = file.toFile();
-        fileScanner(root);
+        Set<Long> existingVideoIds = new HashSet<>();
+        // Only take a snapshot when scanning a directory
+        if (root.isDirectory()) {
+            existingVideoIds = new HashSet<>(videoRepository.findAllVideoIds());
+        }
+        boolean scanSuccessful = fileScanner(root);
+        System.out.print(scanSuccessful);
+        // Only a complete directory scan can tell us which files disappeared
+        if (root.isDirectory() && scanSuccessful) {
+            deleteStales(existingVideoIds);
+        }
         return videoRepository.findAll();
     }
 
-    public void fileScanner(File root) {
-        // receive file from controller and scan the file
-        // the recieved file is a Path file convert it to a file
+    public UserProgress getUserProgress(Long videoId) {
+        return userProgressRepository.findByVideo_Id(videoId);
+    }
+
+    public boolean fileScanner(File root) {
+        boolean scanComplete = true;
         if (root.isDirectory()) {
             File[] allFiles = root.listFiles();
-            if (allFiles == null)
-                return;
+            if (allFiles == null) {
+                System.out.println("Could not access directory: " + root.getAbsolutePath());
+                return false;
+            }
             for (File f : allFiles) {
                 if (IGNORE_FOLDERS.contains(f.getName().toLowerCase())) {
                     continue;
                 }
                 if (f.isDirectory()) {
-                    fileScanner(f);
+                    boolean success = fileScanner(f);
+                    if (!success) {
+                        scanComplete = false;
+                    }
                 } else {
                     checkFile(f);
                 }
@@ -83,6 +123,7 @@ public class MediaScannerService {
         } else {
             checkFile(root);
         }
+        return scanComplete;
     }
 
     public void checkFile(File file) {
@@ -119,20 +160,33 @@ public class MediaScannerService {
         MovieMetadata metadata = null;
         ObjectMapper mapper = new ObjectMapper();
         try {
-            JsonNode jsonNode = mapper.readTree(videoName);
-            videoName = jsonNode.get("title").asText();
-            String year = jsonNode.get("year").asText();
+            videoName = videoName.trim();
 
-            metadata = tmdbService.getDetails(videoName);
+            if (videoName.startsWith("```")) {
+                videoName = videoName.replaceFirst("^```(?:json)?\\s*", "");
+                videoName = videoName.replaceFirst("\\s*```$", "");
+                videoName = videoName.trim();
+            }
+
+            JsonNode jsonNode = mapper.readTree(videoName);
+
+            String name = jsonNode.path("title").asText("");
+            String year = jsonNode.path("year").asText("");
+
+            System.out.println("Name: " + name);
+            System.out.println("Year: " + year);
+
+            // AI could not identify the movie
+            if (name.isBlank() || name.equalsIgnoreCase("not found")) {
+                System.out.println("AI could not identify movie: " + videoName);
+                return null;
+            }
+
+           return tmdbService.getDetails(name, year);
         } catch (Exception e) {
             e.printStackTrace();
-            metadata = tmdbService.getDetails(videoName);
+            return null;
         }
-        if (metadata != null) {
-            System.out.println("Found Poster: " + metadata.posterUrl());
-            System.out.println("Found Plot: " + metadata.overview());
-        }
-        return metadata;
     }
 
     public void saveFile(File videoFile) {
@@ -141,16 +195,22 @@ public class MediaScannerService {
 
         // get clean name from ai
         String cleanName = aiService.cleanNameWithAi(videoName);
-        System.out.print(cleanName);
+        System.out.println("AI Cleaned Name" + cleanName);
         MovieMetadata metadata = getTmdbMetadata(cleanName);
 
-        try {
-            Video v = new Video();
-            v.setFileName(metadata != null ? metadata.title() : cleanName);
-            v.setFilePath(videoFile.getAbsolutePath());
-            v.setPosterPath(metadata != null ? metadata.posterUrl() : null);
-            v.setOverView(metadata != null ? metadata.overview() : null);
+        // get thumbnail from the video itself
+        
+        if (metadata == null) {
+            metadata = new MovieMetadata(videoName, "Not able to fetch the data", "", "");
+        }
 
+        Video v = new Video();
+        v.setFileName(metadata.title() != null ? metadata.title() : cleanName);
+        v.setFilePath(videoFile.getAbsolutePath());
+        v.setPosterPath(metadata.posterUrl() != null ? metadata.posterUrl() : null);
+        v.setOverView(metadata.overview() != null ? metadata.overview() : null);
+        v.setReleaseDate(metadata.releaseDate() != null ? metadata.releaseDate() : null);
+        try {
             Long size = Files.size(videoFile.toPath());
             // convert fileTime to localDateTime
             LocalDateTime lastModifiedTime = Files.getLastModifiedTime(videoFile.toPath()).toInstant()

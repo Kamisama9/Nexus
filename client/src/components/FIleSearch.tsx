@@ -22,6 +22,7 @@ const FileSearch = () => {
   const [syncing, setSyncing] = useState(false);
   const [openModal, setOpenModal] = useState(false);
 
+
   const getAllFiles = async () => {
     setLoading(true);
     try {
@@ -32,22 +33,30 @@ const FileSearch = () => {
     }
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await axios.post(`${API_BASE}/path`, { filePath: filePath });
-      await getAllFiles();
-    } finally {
-      setSyncing(false);
-    }
-  };
-  const handleChangeLibrary = async () => {
+const handleSync = async () => {
+  if (!filePath.trim()) {
     setOpenModal(true);
+    return;
+  }
+  setSyncing(true);
+  try {
+    await axios.post(`${API_BASE}/path`, { filePath });
+    await getAllFiles();
+  } finally {
+    setSyncing(false);
+  }
+};
+
+  const handleChangeLibrary = async () => {
+    setLoading(true);
+    console.log("Changing library path to:", filePath);
     try {
       await axios.put(`${API_BASE}/library`, { filePath: filePath });
+      localStorage.setItem("libraryPath", filePath);
       await getAllFiles();
     } finally {
-      setSyncing(false);
+      setOpenModal(false);
+      setLoading(false);
     }
   };
 
@@ -66,14 +75,17 @@ const FileSearch = () => {
   };
 
   useEffect(() => {
-    getAllFiles();
-  }, []);
+  const savedPath = localStorage.getItem("libraryPath");
+  if (savedPath) {
+    setFilePath(savedPath);
+  }
+  getAllFiles();
+}, []);
 
   return (
     <section className="container relative mx-auto -mt-16 max-w-7xl px-6 pb-20">
-      {/* Floating Search Panel */}
       {openModal && (
-        <div className ="fixed z-100 justify-center items-center bg-opacity-40">
+        <div className ="fixed z-100 justify-center items-center  overflow-auto bg-gray-100/50  inset-0">
           <div className="fixed inset-0 flex items-center justify-center">
             <div className="bg-zinc-900 p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-4 text-white">Change Library Path</h2>
@@ -81,7 +93,7 @@ const FileSearch = () => {
                 type="text"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
-                placeholder="Enter new library path"
+                placeholder={filePath || "Enter new library path"}
                 className="w-full p-2 mb-4 border border-gray-300 rounded"
               />
               <div className="flex justify-end">
@@ -95,7 +107,7 @@ const FileSearch = () => {
                   onClick={handleChangeLibrary}
                   className="px-4 py-2 bg-amber-400 text-black rounded hover:bg-amber-300"
                 >
-                  Save
+                 {loading ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
@@ -120,7 +132,6 @@ const FileSearch = () => {
         </div>
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-          {/* Search */}
 
           <div className="relative flex-1">
             <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" />
@@ -145,10 +156,8 @@ const FileSearch = () => {
             />
           </div>
 
-          {/* Search Button */}
-
           <Button
-            onClick={handleChangeLibrary}
+            onClick={handleSearch}
             className="
             h-14
             rounded-full
@@ -161,8 +170,6 @@ const FileSearch = () => {
             <Search className="mr-2 h-4 w-4" />
             Search
           </Button>
-
-          {/* Sync */}
 
           <Button
             onClick={handleSync}
@@ -187,7 +194,7 @@ const FileSearch = () => {
             Rescan Library
           </Button>
           <Button
-            onClick={handleChangeLibrary}
+            onClick={() => setOpenModal(true)}
             disabled={syncing}
             variant="outline"
             className="
@@ -203,7 +210,6 @@ const FileSearch = () => {
         </div>
       </div>
 
-      {/* Section Header */}
 
       {!loading && (
         <div className="mb-8 flex items-center justify-between">
@@ -217,15 +223,11 @@ const FileSearch = () => {
         </div>
       )}
 
-      {/* Loading */}
-
       {loading && (
         <div className="flex h-80 items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-amber-400" />
         </div>
       )}
-
-      {/* Grid */}
 
       {!loading && <MovieCards videoFiles={videoFiles} />}
     </section>

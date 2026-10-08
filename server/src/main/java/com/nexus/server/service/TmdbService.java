@@ -15,11 +15,9 @@ public class TmdbService {
         this.restClient = restClient;
     }
 
-    public MovieMetadata getDetails(String movieName) {
+    public MovieMetadata getDetails(String movieName,String year) {
         // Call TMDB API to get movie details based on the movie name
         String apiKey = System.getenv("TMDB_API_KEY");
-        String url = "https://api.themoviedb.org/3/search/movie?api_key=" + apiKey + "&query=" + movieName;
-
         try {
             Thread.sleep(2000);
 
@@ -30,6 +28,7 @@ public class TmdbService {
                             .path("/3/search/movie")
                             .queryParam("api_key", apiKey)
                             .queryParam("query", movieName)
+                            .queryParam("primary_release_year", year)
                             .build())
                     .retrieve()
                     .body(JsonNode.class);
